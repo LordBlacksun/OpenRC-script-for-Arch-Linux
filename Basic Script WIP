@@ -1,0 +1,212 @@
+ OpenRC install document for Arch Linux
+Version 0.01
+
+ 1)Setup the repositories. Append the [arch-openrc] and [arch-nosystemd] repositories to /etc/pacman.conf (all commands below need root privileges).
+
+
+
+# cat << EOF >> /etc/pacman.conf
+[arch-openrc]
+SigLevel=Never
+Server=http://downloads.sourceforge.net/project/archopenrc/\$repo/\$arch
+Server=ftp://ftp.heanet.ie/mirrors/sourceforge/a/ar/archopenrc/\$repo/\$arch
+Server=http://archbang.org/archopenrc/\$repo/\$arch
+
+[arch-nosystemd]
+SigLevel=Never
+Server=http://downloads.sourceforge.net/project/archopenrc/\$repo/\$arch
+Server=ftp://ftp.heanet.ie/mirrors/sourceforge/a/ar/archopenrc/\$repo/\$arch
+Server=http://archbang.org/archopenrc/\$repo/\$arch
+EOF
+
+pacman -Syy openrc-keyring openrc-mirrorlist
+ pacman-key --populate openrc
+
+  #You can now remove the [arch-openrc] and [arch-nosystemd] sections and use the OpenRC   mirrorlist:
+ sed -e :a -e '$d;N;2,11ba' -e 'P;D' -i /etc/pacman.conf
+
+pacman -Sw repo-openrc
+
+cat << EOF >> /etc/pacman.conf
+
+
+[openrc-eudev]
+SigLevel=PackageOptional
+Server=http://downloads.sourceforge.net/project/archopenrc/\$repo/\$arch
+Server=ftp://ftp.heanet.ie/mirrors/sourceforge/a/ar/archopenrc/\$repo/\$arch
+EOF
+
+2) # Now you should   save a list of your current services and deamons
+
+systemctl list-units --state=running | grep -v systemd | awk '{print $1}' | grep service > daemon.list
+
+
+ #The file will be placed in your home folder as "deamon.list" Bring that up when you need to install your respective services from the openRC repo.
+
+
+3) # Refresh the package database once more to update [openrc-eudev]. Then you can list the repos packages with 'pacman -Sl '. The ones ending in -openrc are start/stop scripts for various daemons. Compare with the list from step 2. 
+Then, install and populate our keyring and fetch the basic packages in cache (not really mandatory, but the internet might collapse in the middle of the update and leave you without init).
+
+
+ pacman -Sy
+ pacman -Sl arch-openrc arch-nosystemd
+ pacman -Sw sysvinit openrc eudev udev-openrc eudev-systemd libeudev-systemd dbus-openrc dbus-nosystemd procps-ng-nosystemd syslog-ng-nosystemd
+
+
+4)
+
+#Remove systemd and family (answer 'yes' to all pacman questions below). If you do this you MUST also complete step 5, otherwise you're left without init system. If you're doing this remotely (e.g. through ssh), please keep another ssh session open, just in case the first one freezes (has happened to me once).
+
+pacman -Rdd systemd libsystemd
+
+5) #DO NOT REBOOT WITHOUT COMPLETING THIS STEP
+
+# Install openrc and family (eudev-systemd provides systemd and libsystemd dependencies for packages that are linked against libsystemd).
+
+pacman -S sysvinit openrc eudev udev-openrc eudev-systemd libeudev-systemd
+
+Under no circumstances proceed to reboot without having successfully completed steps 4 and 5!
+
+
+Normally however, steps 4 and 5 complete without error and your system is ready to boot with init/OpenRC.
+Still, it's recommended to install some additional packages and perform some configuration before rebooting. 
+
+
+ 6) OPENRC CONFIGURATION PHASE PART 1
+
+
+
+Additional necessary packages
+
+procps-ng-nosystemd because procps-ng's binaries are hardlinked to libsystemd and won't work.
+* dbus-openrc because, well, dbus.
+* netirc for a network configuration backend (networkmanager-openrc and connman-openrc are also available). I use Network manager for example.
+* util-linux-nosystemd because an upstream util-linux binary I don't remember depended on some systemd-cruft.
+
+# So  on my setup i did this:
+
+pacman -S --needed dbus-openrc procps-ng-nosystemd networkmanager-openrc
+
+
+7) Install the openrc scripts for your daemons from step 2 (edit for your setup). This will also install the respective daemons' packages, if missing.
+
+pacman -S --needed acpid-openrc alsa-utils-openrc autofs-openrc consolekit consolekit-openrc cgmanager-openrc cronie-openrc dbus-openrc cups-openrc displaymanager-openrc fuse-openrc haveged-openrc hdparm-openrc openssh-openrc samba-openrc syslog-ng-openrc
+
+# The following steps concern system-wide settings; for desktop configuration we'll elaborate in Configuration part 2. First, enable the necessary daemons.
+
+
+
+for daemon in acpid alsasound autofs dbus consolekit cronie cupsd xdm fuse haveged hdparm smb sshd atd; do rc-update add $daemon default; done
+
+
+
+#Edit /etc/rc.conf to your liking.
+
+#I suggest changing this setting, 
+
+rc_parallel="YES". 
+#This allows  the rc system to try and start services
+ in parallel for a slight speed improvement.
+
+
+
+
+7.1 # Start and enable the network interfaces at boot, edit for your setup
+
+/etc/init.d/NetworkManager start
+
+rc-update add NetworkManager default
+
+#Save yor hostname in OpenRC's directtory
+
+echo "hostname="`hostname` >| /etc/conf.d/hostname
+
+
+
+
+
+7.2
+# Make your display manager start at boot  
+# remember, If you want to boot into X, edit /etc/conf.d/xdm and replace 'xdm' with your display manager (e.g. 'lxdm' or 'mdm'). Then do
+
+rc-update add xdm default
+---------------------------------
+
+Configuration part 2
+
+
+
+Prerequisites
+What you'll need (and why): 
+An application-level toolkit for defining and handling the policy that allows unprivileged processes to speak to privileged processes; that's techspeak for polkit. It must be compiled with support for consolekit or it won't work on systemd-free setups.
+A framework for defining and tracking users, login sessions, and seats. Fancy words for multi-user setups, handled by consolekit.
+Abstraction for enumerating power devices, listening to device events and querying history and statistics. That's the definition of upower, again with consolekit support.
+Some rules to glue the aforementioned components together.
+A graphical authentication agent to authenticate the user of the session as the user or as an administrative user. Cinnamon, Gnome, KDE, LXDE, LXQt, Mate and Xfce have an authentication agent already. If you're with Gnome (hard-dependent on systemd? really?) you'd better ditch it for Cinnamon or Mate. For other desktops or to make sure you have yours installed (and autostarted on login), read the relevant Arch wiki Polkit section.
+Group membership for controlling who can do what.
+
+
+
+
+
+
+
+# pacman -S --needed consolekit polkit-consolekit udisks2-nosystemd desktop-privileges xorg-xwrapper upower|upower-pm-utils
+
+  (edit for your setup)  # pacman -S --needed polkit-gnome|polkit-kde|mate-polkit|lxsession|lxqt-policykit # also xfce-polkit-git or polkit-efl-git from the AUR
+
+# usermod -a -G video,audio,input,power,storage,optical,lp,scanner $USER
+
+
+
+Addtional configuration needed for LVM setups only.
+
+
+#If you have an LVM setup, you need lvm2-openrc and device-mapper-openrc, otherwise your logical volumes will be inactive after reboot.
+
+
+
+# pacman -S lvm2-openrc device-mapper-openrc
+# rc-update add lvm boot
+# rc-update add device-mapper boot
+
+----------------------------------------
+
+Remove some systemd-only users (optional).
+
+
+ for user in systemd-journal systemd-journal-gateway systemd-timesync systemd-network systemd-bus-proxy systemd-journal-remote systemd-journal-upload; do userdel $user; done
+
+
+14. Make sure you remove any 'init=/usr/lib/systemd/systemd' or similar directives in your bootloader config, if any. The linux kernel by default launches /sbin/init. Also, remove any 'x-systemd' directives from /etc/fstab.
+# vi /boot/grub/grub.cfg
+# vi /etc/fstab
+
+
+
+
+REBOOT IN OPENRC
+
+
+
+ You can now reboot into openrc. However, since systemd's executables are no longer present, this is not possible at this point with the regular commands. Umount all filesystems manually and force remount / read-only. You can also use SysRq; sync filesystems, remount read-only and reboot.
+# umount -a
+# mount -f / -o remount,ro
+# echo s >| /proc/sysrq-trigger
+# echo u >| /proc/sysrq-trigger
+# echo b >| /proc/sysrq-trigger
+
+This guide is incomplete and will be updated for all possibile setups.
+
+
+
+
+
+
+
+
+
+
+
+ 
+
