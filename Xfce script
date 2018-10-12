@@ -1,5 +1,5 @@
  OpenRC install document for Arch Linux
-Version 0.01
+Version 0.02 updated October 2018
 
  1)Setup the repositories. Append the [arch-openrc] and [arch-nosystemd] repositories to /etc/pacman.conf (all commands below need root privileges).
 
@@ -36,15 +36,15 @@ Server=http://downloads.sourceforge.net/project/archopenrc/\$repo/\$arch
 Server=ftp://ftp.heanet.ie/mirrors/sourceforge/a/ar/archopenrc/\$repo/\$arch
 EOF
 
-2) # Now you should   save a list of your current services and deamons
+2) # Now you should save a list of your current services and deamons
 
 systemctl list-units --state=running | grep -v systemd | awk '{print $1}' | grep service > daemon.list
 
 
- #The file will be placed in your home folder as "deamon.list" Bring that up when you need to install your respective services from the openRC repo.
+ # The file will be placed in your home folder as "deamon.list" Bring that up when you need to install your respective services from the openRC repo.
 
 
-3) # Refresh the package database once more to update [openrc-eudev]. Then you can list the repos packages with 'pacman -Sl '. The ones ending in -openrc are start/stop scripts for various daemons. Compare with the list from step 2. 
+3) # Refresh the package database once more to update [openrc-eudev]. Then you can list the repos packages with 'pacman -Sl '. The ones ending in -openrc are start/stop scripts for various daemons. Compare with the list from step 2.
 Then, install and populate our keyring and fetch the basic packages in cache (not really mandatory, but the internet might collapse in the middle of the update and leave you without init).
 
 
@@ -55,13 +55,13 @@ Then, install and populate our keyring and fetch the basic packages in cache (no
 
 4)
 
-#Remove systemd and family (answer 'yes' to all pacman questions below). If you do this you MUST also complete step 5, otherwise you're left without init system. If you're doing this remotely (e.g. through ssh), please keep another ssh session open, just in case the first one freezes (has happened to me once).
+Remove systemd and family (answer 'yes' to all pacman questions below). If you do this you MUST also complete step 5, otherwise you're left without init system. If you're doing this remotely (e.g. through ssh), please keep another ssh session open, just in case the first one freezes (has happened to me once).
 
 pacman -Rdd systemd libsystemd
 
-5) #DO NOT REBOOT WITHOUT COMPLETING THIS STEP
+5) DO NOT REBOOT WITHOUT COMPLETING THIS STEP
 
-# Install openrc and family (eudev-systemd provides systemd and libsystemd dependencies for packages that are linked against libsystemd).
+ Install openrc and family (eudev-systemd provides systemd and libsystemd dependencies for packages that are linked against libsystemd).
 
 pacman -S sysvinit openrc eudev udev-openrc eudev-systemd libeudev-systemd
 
@@ -69,7 +69,7 @@ Under no circumstances proceed to reboot without having successfully completed s
 
 
 Normally however, steps 4 and 5 complete without error and your system is ready to boot with init/OpenRC.
-Still, it's recommended to install some additional packages and perform some configuration before rebooting. 
+Still, it's recommended to install some additional packages and perform some configuration before rebooting.
 
 
  6) OPENRC CONFIGURATION PHASE PART 1
@@ -83,7 +83,7 @@ procps-ng-nosystemd because procps-ng's binaries are hardlinked to libsystemd an
 * netirc for a network configuration backend (networkmanager-openrc and connman-openrc are also available). I use Network manager for example.
 * util-linux-nosystemd because an upstream util-linux binary I don't remember depended on some systemd-cruft.
 
-# So  on my setup i did this:
+# So  on my setup (XFCE4) I did this:
 
 pacman -S --needed dbus-openrc procps-ng-nosystemd networkmanager-openrc
 
@@ -102,9 +102,9 @@ for daemon in acpid alsasound autofs dbus consolekit cronie cupsd xdm fuse haveg
 
 #Edit /etc/rc.conf to your liking.
 
-#I suggest changing this setting, 
+#I suggest changing this setting,
 
-rc_parallel="YES". 
+rc_parallel="YES".
 #This allows  the rc system to try and start services
  in parallel for a slight speed improvement.
 
@@ -126,7 +126,7 @@ echo "hostname="`hostname` >| /etc/conf.d/hostname
 
 
 7.2
-# Make your display manager start at boot  
+# Make your display manager start at boot
 # remember, If you want to boot into X, edit /etc/conf.d/xdm and replace 'xdm' with your display manager (e.g. 'lxdm' or 'mdm'). Then do
 
 rc-update add xdm default
@@ -137,7 +137,7 @@ Configuration part 2
 
 
 Prerequisites
-What you'll need (and why): 
+What you'll need (and why):
 An application-level toolkit for defining and handling the policy that allows unprivileged processes to speak to privileged processes; that's techspeak for polkit. It must be compiled with support for consolekit or it won't work on systemd-free setups.
 A framework for defining and tracking users, login sessions, and seats. Fancy words for multi-user setups, handled by consolekit.
 Abstraction for enumerating power devices, listening to device events and querying history and statistics. That's the definition of upower, again with consolekit support.
@@ -151,11 +151,11 @@ Group membership for controlling who can do what.
 
 
 
-# pacman -S --needed consolekit polkit-consolekit udisks2-nosystemd desktop-privileges xorg-xwrapper upower|upower-pm-utils
+ pacman -S --needed consolekit polkit-consolekit udisks2-nosystemd desktop-privileges xorg-xwrapper upower|upower-pm-utils
 
   (edit for your setup)  # pacman -S --needed polkit-gnome|polkit-kde|mate-polkit|lxsession|lxqt-policykit # also xfce-polkit-git or polkit-efl-git from the AUR
 
-# usermod -a -G video,audio,input,power,storage,optical,lp,scanner $USER
+ usermod -a -G video,audio,input,power,storage,optical,lp,scanner $USER
 
 
 
@@ -195,18 +195,3 @@ REBOOT IN OPENRC
 # echo s >| /proc/sysrq-trigger
 # echo u >| /proc/sysrq-trigger
 # echo b >| /proc/sysrq-trigger
-
-This guide is incomplete and will be updated for all possibile setups.
-
-
-
-
-
-
-
-
-
-
-
- 
-
