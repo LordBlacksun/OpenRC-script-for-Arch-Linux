@@ -1,2 +1,2 @@
 # OpenRC-script-for-Arch-Linux
-The goal is to create several scripts, each fit for every DE/WM to facilitate an easy switch to OpenRC for those of us who don't like System D   
+My script for converting an arch system to OpenRC. This is highly personalized  and should be used as a baseline
