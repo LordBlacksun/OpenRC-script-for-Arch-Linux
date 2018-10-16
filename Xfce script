@@ -28,7 +28,7 @@ pacman -Syy openrc-keyring openrc-mirrorlist
 pacman -Sw repo-openrc
 
 cat << EOF >> /etc/pacman.conf
-
+ftfctft
 
 [openrc-eudev]
 SigLevel=PackageOptional
